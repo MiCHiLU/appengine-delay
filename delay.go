@@ -68,6 +68,8 @@ const (
 	path = "/_ah/queue/go/delay"
 	// Use the default queue.
 	queue = ""
+	// +2 for the appengine.Context and *http.Request
+	skipArgLength = 2
 )
 
 var (
@@ -155,7 +157,7 @@ func (f *Function) Task(args ...interface{}) (*taskqueue.Task, error) {
 		return nil, fmt.Errorf("delay: func is invalid: %v", f.err)
 	}
 
-	nArgs := len(args) + 1 // +1 for the appengine.Context
+	nArgs := len(args) + skipArgLength
 	ft := f.fv.Type()
 	minArgs := ft.NumIn()
 	if ft.IsVariadic() {
@@ -169,8 +171,8 @@ func (f *Function) Task(args ...interface{}) (*taskqueue.Task, error) {
 	}
 
 	// Check arg types.
-	for i := 1; i < nArgs; i++ {
-		at := reflect.TypeOf(args[i-1])
+	for i := skipArgLength; i < nArgs; i++ {
+		at := reflect.TypeOf(args[i-skipArgLength])
 		var dt reflect.Type
 		if i < minArgs {
 			// not a variadic arg
@@ -190,11 +192,11 @@ func (f *Function) Task(args ...interface{}) (*taskqueue.Task, error) {
 		}
 		switch at.Kind() {
 		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
-			av := reflect.ValueOf(args[i-1])
+			av := reflect.ValueOf(args[i-skipArgLength])
 			if av.IsNil() {
 				// nil value in interface; not supported by gob, so we replace it
 				// with a nil interface value
-				args[i-1] = nil
+				args[i-skipArgLength] = nil
 			}
 		}
 		if !at.AssignableTo(dt) {
@@ -244,7 +246,7 @@ func runFunc(c appengine.Context, w http.ResponseWriter, req *http.Request) {
 	}
 
 	ft := f.fv.Type()
-	in := []reflect.Value{reflect.ValueOf(c)}
+	in := []reflect.Value{reflect.ValueOf(c), reflect.ValueOf(req)}
 	for _, arg := range inv.Args {
 		var v reflect.Value
 		if arg != nil {
