@@ -66,8 +66,6 @@ type Function struct {
 const (
 	// The HTTP path for invocations.
 	path = "/_ah/queue/go/delay"
-	// Use the default queue.
-	queue = ""
 	// +2 for the appengine.Context and *http.Request
 	skipArgLength = 2
 )
@@ -137,7 +135,7 @@ type invocation struct {
 // is equivalent to
 //   t, _ := f.Task(...)
 //   taskqueue.Add(c, t, "")
-func (f *Function) Call(c appengine.Context, args ...interface{}) {
+func (f *Function) Call(c appengine.Context, queue string, args ...interface{}) {
 	t, err := f.Task(args...)
 	if err != nil {
 		c.Errorf("%v", err)
